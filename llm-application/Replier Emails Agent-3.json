@@ -1,0 +1,784 @@
+{
+  "name": "Replier Emails Agent",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1056,
+        864
+      ],
+      "id": "86c81829-08b9-4d5f-a9db-cc80f834984c",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://855d2b3a447b.ngrok-free.app/auth/login",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"email\":\"systembtl298@gmail.com\",\n  \"password\":\"SystemBTL2024!\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -816,
+        864
+      ],
+      "id": "eb277085-6d01-4b5e-986b-306c39a5caf3",
+      "name": "Auth BTL App"
+    },
+    {
+      "parameters": {
+        "url": "https://855d2b3a447b.ngrok-free.app/cases/pending",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.accessToken }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -624,
+        864
+      ],
+      "id": "331240af-e538-44fd-8771-e475c89266aa",
+      "name": "Get all Cases"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -336,
+        864
+      ],
+      "id": "6c450569-4fa0-4437-a31b-5047f82480a9",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://gmail.googleapis.com/gmail/v1/users/me/messages?q=rfc822msgid:' + encodeURIComponent($('Loop Over Items').item.json.messageId) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer  {{ $json.data.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        192,
+        880
+      ],
+      "id": "788cf131-f11d-4837-bfd7-84190d424eb6",
+      "name": "Get threadId"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  JSON.parse($json[\"content\"][\"parts\"][0][\"text\"])\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        784
+      ],
+      "id": "7c241b8b-96bd-43c7-96d3-10f96c3bf11f",
+      "name": "Parser output"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cnc-file-filler.onrender.com/generar-conciliacion",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"Content-Type\": \"application/json\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.toJsonString() }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2144,
+        1488
+      ],
+      "id": "3aae9634-980b-4951-a507-cc6f311e55b3",
+      "name": "Llenar formulario de conciliación"
+    },
+    {
+      "parameters": {
+        "url": "=https://gmail.googleapis.com/gmail/v1/users/me/messages/{{ $('Obtener hilo de correo').item.json.id }}/attachments/{{ $('Obtener hilo de correo').item.json.messages[0].payload.parts[1].body.attachmentId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer  {{ $('Obtener credenciales').item.json.data.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1392,
+        512
+      ],
+      "id": "240ddcc5-94d2-4f72-965a-2a269462f9e6",
+      "name": "Obtener RCE"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base64url = $json[\"data\"];\nlet b64 = base64url.replace(/-/g, '+').replace(/_/g, '/');\nwhile (b64.length % 4) b64 += '=';\nconst buffer = Buffer.from(b64, 'base64');\n\nreturn [{\n  json: {},\n  binary: {\n    rce_pdf: {\n      data: buffer.toString('base64'),\n      fileName: 'RCE.pdf',\n      mimeType: 'application/pdf'\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        512
+      ],
+      "id": "9c00b7fe-01fe-4cc4-b82d-57d345c6e58b",
+      "name": "Base64 -> .pdf"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "rce_pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        512
+      ],
+      "id": "3d1a7383-705d-46be-aff1-2de53a9104dc",
+      "name": "Extraer texto del RCE"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://script.google.com/macros/s/AKfycbx_m56-WYOdpoeFaHTNWbM4HBby_2a5zHat5f3d6vcSfWxHeauOSkXkB7n_OI7auc1PQQ/exec",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "numeroPoliza",
+              "value": "=1234"
+            },
+            {
+              "name": "token",
+              "value": "MiTokenSuperSecreto123"
+            },
+            {
+              "name": "sheetTemporalId",
+              "value": "={{ $('Obtener credenciales').item.json.data.sheetTemporalID }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        992
+      ],
+      "id": "9e1e3f30-b692-4c66-b8c6-5addc28b8a00",
+      "name": "Obtener metadata del caso"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base64url = $json[\"file_base64\"];\nlet b64 = base64url.replace(/-/g, '+').replace(/_/g, '/');\nwhile (b64.length % 4) b64 += '=';\nconst buffer = Buffer.from(b64, 'base64');\n\nreturn [{\n  json: {},\n  binary: {\n    conciliacion_pdf: {\n      data: buffer.toString('base64'),\n      fileName: $json[\"filename\"] || 'conciliacion.pdf',\n      mimeType: 'application/pdf'\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        1760
+      ],
+      "id": "0aaa8cac-3352-48e1-8564-885ec32774ac",
+      "name": "Obtener conciliación llenada"
+    },
+    {
+      "parameters": {
+        "jsCode": "const primerJSON = $('Parser output').first().json;\nconst segundoJSON = $('Get row(s) in sheet').first().json;\n\n// Función helper para obtener valor y asegurar que sea string\nfunction toStr(val, fallback = '') {\n  return val !== undefined && val !== null ? String(val) : fallback;\n}\n\nconst resultado = {\n  ...primerJSON,\n  dia: toStr(primerJSON.dia) || toStr(segundoJSON.dia),\n  mes: toStr(primerJSON.mes) || toStr(segundoJSON.mes),\n  año: toStr(primerJSON.año) || toStr(segundoJSON.año),\n  direccion: toStr(primerJSON.direccion) || toStr(segundoJSON.direccion),\n  cuantia: toStr(primerJSON.cuantia) || toStr(segundoJSON.cuantia),\n\n  asegurado: {\n    ...primerJSON.asegurado,\n    nombre_apellido: toStr(primerJSON.asegurado.nombre_apellido) || toStr(segundoJSON[\"asegurado.nombre_apellido\"]),\n    numero_documento: toStr(primerJSON.asegurado.numero_documento) || toStr(segundoJSON[\"asegurado.numero_documento\"]),\n    direccion: toStr(primerJSON.asegurado.direccion) || toStr(segundoJSON[\"asegurado.direccion\"]),\n    municipio: toStr(primerJSON.asegurado.municipio) || toStr(segundoJSON[\"asegurado.municipio\"]),\n    departamento: toStr(primerJSON.asegurado.departamento) || toStr(segundoJSON[\"asegurado.departamento\"]),\n    telefono: toStr(primerJSON.asegurado.telefono) || toStr(segundoJSON[\"asegurado.telefono\"]),\n    email: toStr(primerJSON.asegurado.email) || toStr(segundoJSON[\"asegurado.email\"]),\n    numero_poliza: toStr(primerJSON.asegurado.numero_poliza) || toStr(segundoJSON[\"asegurado.numero_poliza\"]),\n    placas_vehiculo: toStr(primerJSON.asegurado.placas_vehiculo) || toStr(segundoJSON[\"asegurado.placas_vehiculo\"]),\n  },\n\n  propietario_asegurado: {\n    ...primerJSON.propietario_asegurado,\n    nombre_apellido: toStr(primerJSON.propietario_asegurado.nombre_apellido) || toStr(segundoJSON[\"propietario_asegurado.nombre_apellido\"]),\n    numero_documento: toStr(primerJSON.propietario_asegurado.numero_documento) || toStr(segundoJSON[\"propietario_asegurado.numero_documento\"]),\n    direccion: toStr(primerJSON.propietario_asegurado.direccion) || toStr(segundoJSON[\"propietario_asegurado.direccion\"]),\n    municipio: toStr(primerJSON.propietario_asegurado.municipio) || toStr(segundoJSON[\"propietario_asegurado.municipio\"]),\n    departamento: toStr(primerJSON.propietario_asegurado.departamento) || toStr(segundoJSON[\"propietario_asegurado.departamento\"]),\n    telefono: toStr(primerJSON.propietario_asegurado.telefono) || toStr(segundoJSON[\"propietario_asegurado.telefono\"]),\n    email: toStr(primerJSON.propietario_asegurado.email) || toStr(segundoJSON[\"propietario_asegurado.email\"]),\n  },\n\n  tercero: {\n    ...primerJSON.tercero,\n    nombre_apellido: toStr(primerJSON.tercero.nombre_apellido) || toStr(segundoJSON[\"tercero.nombre_apellido\"]),\n    numero_documento: toStr(primerJSON.tercero.numero_documento) || toStr(segundoJSON[\"tercero.numero_documento\"]),\n    direccion: toStr(primerJSON.tercero.direccion) || toStr(segundoJSON[\"tercero.direccion\"]),\n    municipio: toStr(primerJSON.tercero.municipio) || toStr(segundoJSON[\"tercero.municipio\"]),\n    departamento: toStr(primerJSON.tercero.departamento) || toStr(segundoJSON[\"tercero.departamento\"]),\n    telefono: toStr(primerJSON.tercero.telefono) || toStr(segundoJSON[\"tercero.telefono\"]),\n    email: toStr(primerJSON.tercero.email) || toStr(segundoJSON[\"tercero.email\"]),\n    numero_poliza: toStr(primerJSON.tercero.numero_poliza) || toStr(segundoJSON[\"tercero.numero_poliza\"]),\n    aseguradora: toStr(primerJSON.tercero.aseguradora) || toStr(segundoJSON[\"tercero.aseguradora\"]),\n  },\n\n  propietario_tercero: {\n    ...primerJSON.propietario_tercero,\n    nombre_apellido: toStr(primerJSON.propietario_tercero.nombre_apellido) || toStr(segundoJSON[\"propietario_tercero.nombre_apellido\"]),\n    numero_documento: toStr(primerJSON.propietario_tercero.numero_documento) || toStr(segundoJSON[\"propietario_tercero.numero_documento\"]),\n    direccion: toStr(primerJSON.propietario_tercero.direccion) || toStr(segundoJSON[\"propietario_tercero.direccion\"]),\n    municipio: toStr(primerJSON.propietario_tercero.municipio) || toStr(segundoJSON[\"propietario_tercero.municipio\"]),\n    departamento: toStr(primerJSON.propietario_tercero.departamento) || toStr(segundoJSON[\"propietario_tercero.departamento\"]),\n    telefono: toStr(primerJSON.propietario_tercero.telefono) || toStr(segundoJSON[\"propietario_tercero.telefono\"]),\n    email: toStr(primerJSON.propietario_tercero.email) || toStr(segundoJSON[\"propietario_tercero.email\"]),\n  }\n};\n\nreturn [{ json: resultado }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        1248
+      ],
+      "id": "58dc77fa-45db-494e-aff8-5cc9bab98c70",
+      "name": "Juntar JSON's"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Eres un analista experto en interpretar respuestas de correos electrónicos relacionados con RCE (Reclamaciones para pago).  \nTu tarea es leer la respuesta recibida y clasificarla como POSITIVA o NEGATIVA según las siguientes reglas:  \n\nREGLAS:\n- **POSITIVA** → El remitente indica o da a entender que:\n  - Responderá formalmente al RCE.\n  - Proporcionará la información solicitada.\n  - Está de acuerdo con el pago o lo realizará.\n  - Acepta la reclamación o se compromete a revisarla.\n  - Muestra disposición clara a colaborar o dar seguimiento.\n- **NEGATIVA** → El remitente indica o da a entender que:\n  - No responderá al RCE.\n  - No realizará el pago.\n  - Rechaza la reclamación.\n  - Niega tener obligación.\n  - No muestra intención de dar seguimiento.\n  - Responde evasivamente sin comprometerse.\n\nREGLAS DE SALIDA:\n- Devuelve **únicamente** una de las dos palabras en mayúsculas: `POSITIVA` o `NEGATIVA`.\n- No incluyas explicaciones ni texto adicional.\n- Si la respuesta es ambigua, clasifica en base a la intención predominante.\n\nEJEMPLOS:\n\nEjemplo 1:\nTexto: \"Revisaremos la reclamación y le daremos respuesta en el transcurso de esta semana.\"\nClasificación: POSITIVA\n\nEjemplo 2:\nTexto: \"No estamos de acuerdo con el cobro y no daremos respuesta formal.\"\nClasificación: NEGATIVA\n\nEjemplo 3:\nTexto: \"Ya procesamos el pago, llegará a su cuenta en dos días.\"\nClasificación: POSITIVA\n\nEjemplo 4:\nTexto: \"No tenemos obligación de pagar este valor.\"\nClasificación: NEGATIVA\n\nEjemplo 5:\nTexto: \"Vamos a enviar la documentación solicitada mañana.\"\nClasificación: POSITIVA\n\nEjemplo 6:\nTexto: \"No tenemos información y no podemos ayudarle.\"\nClasificación: NEGATIVA\n\nEjemplo 7:\nTexto: \"Entendemos la solicitud, la revisaremos y le confirmaremos.\"\nClasificación: POSITIVA\n\nEjemplo 8:\nTexto: \"Este caso está cerrado y no daremos más respuesta.\"\nClasificación: NEGATIVA\n\nEjemplo 9:\nTexto: \"Pagaremos tan pronto recibamos la factura.\"\nClasificación: POSITIVA\n\nEjemplo 10:\nTexto: \"Nuestra posición sigue siendo la misma: no vamos a responder.\"\nClasificación: NEGATIVA\n\nTEXTO A CLASIFICAR:\n\"\"\"\n{{ $json.messages[1] }}\n\"\"\"\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        464
+      ],
+      "id": "87d21caf-37e0-4d45-a2cf-6e8901711b27",
+      "name": "Interpretar respuesta (+ / -)"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Eres un extractor de datos experto en reclamaciones de seguros (RCE).\n\nLos documentos RCE comienzan con un encabezado fijo con ciudad y fecha de envío, destinatario, correo, teléfono, etc.  \n**No uses** esos datos para ningún campo, ya que no representan la ciudad de la reclamación ni la fecha del accidente.\n\nLuego, hay un apartado estándar que inicia con:\n\n\"Asunto: Reclamación Responsabilidad Civil Extracontractual  \n[...]\"\n\nEste apartado es siempre igual y no contiene datos útiles.\n\nLa información relevante comienza después, generalmente en la sección \"Hechos\" o equivalente.\n\nDebes extraer:\n\n- \"sedeCNC\": la ciudad desde donde se dirige la reclamación (esta puede estar en el cuerpo del texto, no es la ciudad del encabezado).  \n- \"dia\", \"mes\", \"año\": la fecha del accidente, que debe buscarse dentro del cuerpo del texto, preferiblemente en la sección de hechos o en donde se describa el evento.\n\nSi la fecha del accidente no está presente, devolver cadenas vacías para día, mes y año.\n\nNo uses datos del destinatario ni del apartado estándar para ningún campo.\n\nSi algún dato no está presente, devolver cadena vacía \"\".\n\nNo incluyas texto o explicaciones fuera del JSON.\n\nFormato de salida JSON:\n\n{\n    \"sedeCNC\": string,\n    \"placas_vehiculo_asegurado\": string,\n    \"dia\": string,\n    \"mes\": string,\n    \"año\": string,\n    \"direccion\": string,\n    \"cuantia\": string,\n    \"asegurado\": {\n        \"nombre_apellido\": string,\n        \"numero_documento\": string,\n        \"direccion\": string,\n        \"municipio\": string,\n        \"departamento\": string,\n        \"telefono\": string,\n        \"email\": string,\n        \"numero_poliza\": string,\n        \"placas_vehiculo\": string\n    },\n    \"propietario_asegurado\": {\n        \"nombre_apellido\": string,\n        \"numero_documento\": string,\n        \"direccion\": string,\n        \"municipio\": string,\n        \"departamento\": string,\n        \"telefono\": string,\n        \"email\": string\n    },\n    \"tercero\": {\n        \"nombre_apellido\": string,\n        \"numero_documento\": string,\n        \"direccion\": string,\n        \"municipio\": string,\n        \"departamento\": string,\n        \"telefono\": string,\n        \"email\": string,\n        \"numero_poliza\": string,\n        \"placas_vehiculo\": string,\n        \"aseguradora\": string\n    },\n    \"propietario_tercero\": {\n        \"nombre_apellido\": string,\n        \"numero_documento\": string,\n        \"direccion\": string,\n        \"municipio\": string,\n        \"departamento\": string,\n        \"telefono\": string,\n        \"email\": string\n    }\n}\n\nTexto del RCE:  \n{{ $json[\"text\"] }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        512
+      ],
+      "id": "2b80fffb-d5e0-44a3-a717-b37453e03319",
+      "name": "Extraer info del RCE adjunto"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d170deb4-63e7-4449-bd99-85545b4744bf",
+              "leftValue": "={{ $json.messages.length }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        592,
+        880
+      ],
+      "id": "22617ccb-6f82-4b3a-ab60-194db841e0db",
+      "name": "¿Se dio respuesta al correo?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f7dc2bf6-5212-4f7a-9b8e-bbea38d11f0b",
+              "leftValue": "={{ $json.content.parts[0].text }}",
+              "rightValue": "NEGATIVA",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1184,
+        640
+      ],
+      "id": "eff91c01-a129-4811-b54f-9f9eb9f5597b",
+      "name": "¿La respuesta es NEGATIVA?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://855d2b3a447b.ngrok-free.app/oauth/tokens",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "n8n-secure-api-key-12345678"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "userEmail",
+              "value": "={{ $json.user.email }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32,
+        880
+      ],
+      "id": "5c8c4223-a479-4f7a-ab90-64f5f928154d",
+      "name": "Obtener credenciales"
+    },
+    {
+      "parameters": {
+        "url": "=https://gmail.googleapis.com/gmail/v1/users/me/threads/{{ $json.messages[0].threadId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer  {{ $('Obtener credenciales').item.json.data.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        384,
+        880
+      ],
+      "id": "11459424-0f90-4830-8608-58897428cafd",
+      "name": "Obtener hilo de correo"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer  {{ $('Obtener credenciales').item.json.data.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "raw",
+              "value": "={{ $json.raw }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2384,
+        2016
+      ],
+      "id": "77271448-8dc9-4943-b4f2-65e78d68d724",
+      "name": "Enviar PDF a la CNC"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CONFIGURACIÓN ===\nconst sender = $('Obtener credenciales').first().json.data.email;\nconst to = \"conciliadorbtl@gmail.com\";\nconst subject = `Conciliación del caso con número de póliza ${$('Juntar JSON\\'s').first().json.asegurado.numero_poliza}`;\n\n// === CUERPO DEL MENSAJE ===\nconst mensajeInicial = `\n<p>Cordial saludo,</p>\n<p>Adjunto encontrará el archivo de conciliación para el RCE del asegurado \n<strong>${$('Juntar JSON\\'s').first().json.asegurado.nombre_apellido}</strong>, \ncon póliza número \n<strong>${$('Juntar JSON\\'s').first().json.asegurado.numero_poliza}</strong>.</p>\n`;\n\nconst firmaHTML = `\n<div style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">\n<p>Cordialmente,</p>\n<p>\n<strong>${$('Obtener credenciales').first().json.data.fullName}</strong><br>\nAbogado<br>\n<strong>BTL Legal Group</strong><br>\nAvenida 6AN # 25N - 22 Piso 3<br>\nEdificio Nexxus XXV<br>\nCelular: ${$('Obtener credenciales').first().json.data.phone}<br>\nTeléfono: (2) 4852303 y 4853993<br>\n<a href=\"mailto:${$('Obtener credenciales').first().json.data.email}\">\n${$('Obtener credenciales').first().json.data.email}</a><br>\nSantiago de Cali - Colombia\n</p>\n<img src=\"https://res.cloudinary.com/dapfvvlsy/image/upload/v1754098052/unnamed-2_lj2wd2.png\" \n     alt=\"BTL Legal Group\" width=\"120\">\n<div style=\"margin-top: 20px; padding: 10px; border-left: 4px solid #007BFF; background-color: #f9f9f9;\">     \n<strong>AVISO DE CONFIDENCIALIDAD:</strong> \nEl anterior mensaje de correo electrónico y sus anexos contienen información confidencial y, por lo tanto, sujeta a reserva. Si usted no es destinatario del mismo debe proceder a informar mediante correo electrónico a la persona que lo envió y a borrar de su sistema tanto el correo recibido como el enviado, sin conservar copias. En todo caso el uso, difusión, distribución o reproducción del presente mensaje, sin autorización, es prohibido y puede configurar un delito.\n</div>    \n\n<div style=\"margin-top: 10px; padding: 10px; border-left: 4px solid #007BFF; background-color: #f9f9f9;\">     \n<strong>CONFIDENTIALITY NOTICE:</strong> \nThe previous email message and its attachments contain confidential information and are therefore subject to privilege. If you are not the intended recipient, you must notify the sender by email and delete both the received and sent email from your system without keeping copies. In any case, the use, disclosure, distribution or reproduction of this message without authorization is prohibited and may constitute a crime.   \n</div>\n</div>\n`;\n\nconst htmlContent = mensajeInicial + firmaHTML;\n\n// === OBTENER PDF BINARIO ===\nconst firstItem = $input.first();\n\n// Verificar si tenemos datos binarios\nif (!firstItem.binary || !firstItem.binary.conciliacion_pdf) {\n  throw new Error(\"No se encontró el binario 'conciliacion_pdf'.\");\n}\n\n// Obtener el buffer del PDF y convertir a base64\nconst pdfBuffer = firstItem.binary.conciliacion_pdf.data;\nconst pdfFilename = firstItem.binary.conciliacion_pdf.fileName || \"conciliacion.pdf\";\nconst pdfMimeType = firstItem.binary.conciliacion_pdf.mimeType || \"application/pdf\";\n\n// Convertir buffer a base64 (n8n almacena binarios como Buffer)\nconst pdfBase64 = pdfBuffer.toString('base64');\n\n// === GENERAR BOUNDARY ÚNICO ===\nfunction generateBoundary() {\n  return \"boundary_\" + Date.now() + \"_\" + Math.random().toString(36).substr(2, 9);\n}\n\n// === CODIFICAR SUBJECT RFC 2047 PARA ACENTOS ===\nfunction encodeRFC2047(str) {\n  const base64 = Buffer.from(str, 'utf8').toString('base64');\n  return `=?UTF-8?B?${base64}?=`;\n}\n\nconst escapedSubject = encodeRFC2047(subject);\nconst boundary = generateBoundary();\nconst currentDate = new Date().toUTCString();\n\n// Crear el mensaje MIME completo\nlet mimeMessage = [\n  `MIME-Version: 1.0`,\n  `Date: ${currentDate}`,\n  `From: ${sender}`,\n  `To: ${to}`,\n  `Subject: ${escapedSubject}`,\n  `Content-Type: multipart/mixed; boundary=\"${boundary}\"`,\n  ``,\n  `This is a multi-part message in MIME format.`,\n  ``,\n  `--${boundary}`,\n  `Content-Type: text/html; charset=\"UTF-8\"`,\n  `Content-Transfer-Encoding: 7bit`,\n  ``,\n  htmlContent,\n  ``,\n  `--${boundary}`,\n  `Content-Type: ${pdfMimeType}; name=\"${pdfFilename}\"`,\n  `Content-Transfer-Encoding: base64`,\n  `Content-Disposition: attachment; filename=\"${pdfFilename}\"`,\n  ``,\n  pdfBase64,\n  ``,\n  `--${boundary}--`\n].join(\"\\r\\n\");\n\n// === BASE64URL ENCODE PARA GMAIL ===\nfunction base64UrlEncode(str) {\n  const base64 = Buffer.from(str, 'utf8').toString('base64');\n  return base64\n    .replace(/\\+/g, \"-\")\n    .replace(/\\//g, \"_\")\n    .replace(/=+$/, \"\");\n}\n\n// === PAYLOAD PARA GMAIL API ===\nconst payload = {\n  raw: base64UrlEncode(mimeMessage)\n};\n\n// === CONFIGURACIÓN PARA HTTP REQUEST NODE ===\n// Method: POST\n// URL: https://gmail.googleapis.com/gmail/v1/users/me/messages/send\n// Authentication: OAuth2\n// Headers: \n//   - Content-Type: application/json\n//   - Accept: application/json\n\n// === SALIDA ===\nreturn [\n  {\n    json: {\n      raw: base64UrlEncode(mimeMessage),\n      debug: {\n        mimeSize: mimeMessage.length,\n        pdfSize: pdfBase64.length,\n        boundary: boundary,\n        filename: pdfFilename,\n        sender: sender,\n        to: to,\n        subject: escapedSubject\n      }\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        2016
+      ],
+      "id": "2625dae1-1c97-429b-bdb3-164626f837de",
+      "name": "Construir MIME"
+    },
+    {
+      "parameters": {
+        "url": "=https://script.google.com/macros/s/AKfycbxquVEW6ayWEjtDEishZVR3nrUguX1FRNpC_6B-gogrSdMFJWbsoZC472UMSWWS3bbReA/exec?sheetId={{ $('Obtener credenciales').item.json.data.sheetTemporalID }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2416,
+        992
+      ],
+      "id": "49bbeb63-e812-4650-96f0-2b3a71dcd0f2",
+      "name": "Obtener toda la info del Caso"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://c6fb110d4f76.ngrok-free.app/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "deepseek-r1:14b"
+            },
+            {
+              "name": "prompt",
+              "value": "=Eres un analista experto en interpretar respuestas de correos electrónicos relacionados con RCE (Reclamaciones para pago).   Tu tarea es leer la respuesta recibida y clasificarla como POSITIVA o NEGATIVA según las siguientes reglas:    REGLAS: - **POSITIVA** → El remitente indica o da a entender que:   - Responderá formalmente al RCE.   - Proporcionará la información solicitada.   - Está de acuerdo con el pago o lo realizará.   - Acepta la reclamación o se compromete a revisarla.   - Muestra disposición clara a colaborar o dar seguimiento. - **NEGATIVA** → El remitente indica o da a entender que:   - No responderá al RCE.   - No realizará el pago.   - Rechaza la reclamación.   - Niega tener obligación.   - No muestra intención de dar seguimiento.   - Responde evasivamente sin comprometerse.  REGLAS DE SALIDA: - Devuelve **únicamente** una de las dos palabras en mayúsculas: `POSITIVA` o `NEGATIVA`. - No incluyas explicaciones ni texto adicional. - Si la respuesta es ambigua, clasifica en base a la intención predominante.  EJEMPLOS:  Ejemplo 1: Texto: \"Revisaremos la reclamación y le daremos respuesta en el transcurso de esta semana.\" Clasificación: POSITIVA  Ejemplo 2: Texto: \"No estamos de acuerdo con el cobro y no daremos respuesta formal.\" Clasificación: NEGATIVA  Ejemplo 3: Texto: \"Ya procesamos el pago, llegará a su cuenta en dos días.\" Clasificación: POSITIVA  Ejemplo 4: Texto: \"No tenemos obligación de pagar este valor.\" Clasificación: NEGATIVA  Ejemplo 5: Texto: \"Vamos a enviar la documentación solicitada mañana.\" Clasificación: POSITIVA  Ejemplo 6: Texto: \"No tenemos información y no podemos ayudarle.\" Clasificación: NEGATIVA  Ejemplo 7: Texto: \"Entendemos la solicitud, la revisaremos y le confirmaremos.\" Clasificación: POSITIVA  Ejemplo 8: Texto: \"Este caso está cerrado y no daremos más respuesta.\" Clasificación: NEGATIVA  Ejemplo 9: Texto: \"Pagaremos tan pronto recibamos la factura.\" Clasificación: POSITIVA  Ejemplo 10: Texto: \"Nuestra posición sigue siendo la misma: no vamos a responder.\" Clasificación: NEGATIVA  TEXTO A CLASIFICAR: \"\"\" {{ $json.messages[1] }} \"\"\""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        720
+      ],
+      "id": "e626f5f5-9b9a-4910-bf2a-7cfe98819b4d",
+      "name": "Calling deepseek LLM local using Ollama"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Auth BTL App",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth BTL App": {
+      "main": [
+        [
+          {
+            "node": "Get all Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get all Cases": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Obtener credenciales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get threadId": {
+      "main": [
+        [
+          {
+            "node": "Obtener hilo de correo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser output": {
+      "main": [
+        [
+          {
+            "node": "Obtener metadata del caso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llenar formulario de conciliación": {
+      "main": [
+        [
+          {
+            "node": "Obtener conciliación llenada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener RCE": {
+      "main": [
+        [
+          {
+            "node": "Base64 -> .pdf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Base64 -> .pdf": {
+      "main": [
+        [
+          {
+            "node": "Extraer texto del RCE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer texto del RCE": {
+      "main": [
+        [
+          {
+            "node": "Extraer info del RCE adjunto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener metadata del caso": {
+      "main": [
+        [
+          {
+            "node": "Obtener toda la info del Caso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener conciliación llenada": {
+      "main": [
+        [
+          {
+            "node": "Construir MIME",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Juntar JSON's": {
+      "main": [
+        [
+          {
+            "node": "Llenar formulario de conciliación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpretar respuesta (+ / -)": {
+      "main": [
+        []
+      ]
+    },
+    "Extraer info del RCE adjunto": {
+      "main": [
+        [
+          {
+            "node": "Parser output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Se dio respuesta al correo?": {
+      "main": [
+        [
+          {
+            "node": "Calling deepseek LLM local using Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿La respuesta es NEGATIVA?": {
+      "main": [
+        [
+          {
+            "node": "Obtener RCE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener credenciales": {
+      "main": [
+        [
+          {
+            "node": "Get threadId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener hilo de correo": {
+      "main": [
+        [
+          {
+            "node": "¿Se dio respuesta al correo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir MIME": {
+      "main": [
+        [
+          {
+            "node": "Enviar PDF a la CNC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar PDF a la CNC": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener toda la info del Caso": {
+      "main": [
+        [
+          {
+            "node": "Juntar JSON's",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calling deepseek LLM local using Ollama": {
+      "main": [
+        [
+          {
+            "node": "¿La respuesta es NEGATIVA?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "606e5fed-f333-47f5-8632-35fdd5f3a9b7",
+  "meta": {
+    "instanceId": "4b768ef1415e46c712a8ba8733996b955e27189c7c58cad8f49feb610908052e"
+  },
+  "id": "DozArLIcajGCPugY",
+  "tags": []
+}
